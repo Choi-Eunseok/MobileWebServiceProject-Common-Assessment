@@ -8,8 +8,11 @@ import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.provider.OpenableColumns;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -64,6 +67,10 @@ public class MainActivity extends AppCompatActivity {
     LoginTask taskLogin;
     SwipeRefreshLayout swipeRefresh;
 
+    // 게시물 검색 : 내려받은 전체 목록(allPosts)에서 제목/내용에 검색어가 포함된 것만 표시
+    EditText editSearch;
+    List<PostItem> allPosts = new ArrayList<>();
+
     // 갤러리에서 이미지 선택 결과 수신
     private final ActivityResultLauncher<Intent> imagePicker = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -81,6 +88,14 @@ public class MainActivity extends AppCompatActivity {
         //imgView = (ImageView) findViewById(R.id.imgView);
         textView = (TextView) findViewById(R.id.textView);
         textUser = (TextView) findViewById(R.id.text_user);
+
+        // 검색어 입력 시 목록 필터링
+        editSearch = findViewById(R.id.edit_search);
+        editSearch.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            @Override public void afterTextChanged(Editable s) { showPosts(); }
+        });
 
         // 아래로 당기면 목록 새로고침
         swipeRefresh = findViewById(R.id.swipeRefresh);
@@ -117,6 +132,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void onClickLogout(View v) {
         auth.edit().clear().apply();
+        allPosts = new ArrayList<>();
+        editSearch.setText("");
         textView.setText("...");
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setAdapter(null);
@@ -229,16 +246,37 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(List<PostItem> images) {
             swipeRefresh.setRefreshing(false);
-            if (images.isEmpty()) {
-                textView.setText("불러올 이미지가 없습니다.");
-            } else {
-                textView.setText("이미지 로드 성공!");
-                RecyclerView recyclerView = findViewById(R.id.recyclerView);
-                ImageAdapter adapter = new ImageAdapter(images, post -> new PostDetailDialog(MainActivity.this, post).show());
-                recyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.this));
-                recyclerView.setAdapter(adapter);
+            allPosts = images;
+            showPosts();
+        }
+    }
+
+    // 검색어에 맞는 게시물만 골라 목록에 표시
+    private void showPosts() {
+        String keyword = editSearch.getText().toString().trim().toLowerCase();
+        List<PostItem> shown = new ArrayList<>();
+        for (PostItem post : allPosts) {
+            if (keyword.isEmpty()
+                    || post.title.toLowerCase().contains(keyword)
+                    || post.text.toLowerCase().contains(keyword)) {
+                shown.add(post);
             }
         }
+
+        if (allPosts.isEmpty()) {
+            textView.setText("불러올 이미지가 없습니다.");
+        } else if (shown.isEmpty()) {
+            textView.setText("검색 결과가 없습니다.");
+        } else if (keyword.isEmpty()) {
+            textView.setText("이미지 로드 성공!");
+        } else {
+            textView.setText("검색 결과 " + shown.size() + "개");
+        }
+
+        RecyclerView recyclerView = findViewById(R.id.recyclerView);
+        ImageAdapter adapter = new ImageAdapter(shown, post -> new PostDetailDialog(MainActivity.this, post).show());
+        recyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.this));
+        recyclerView.setAdapter(adapter);
     }
 
     // 로그인 : POST /api-token-auth/ (username, password) -> token, user_id, username

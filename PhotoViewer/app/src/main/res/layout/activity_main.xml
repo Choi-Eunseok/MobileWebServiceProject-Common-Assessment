@@ -43,6 +43,17 @@
             android:text="로그아웃" />
     </LinearLayout>
 
+    <EditText
+        android:id="@+id/edit_search"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:hint="제목 또는 내용 검색"
+        android:imeOptions="actionSearch"
+        android:inputType="text"
+        android:maxLines="1" />
+
     <TextView
         android:id="@+id/textView"
         android:layout_width="match_parent"
