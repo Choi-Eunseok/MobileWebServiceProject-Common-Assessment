@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
 
     ImageView imgView;
     TextView textView;
-    String site_url = "http://10.0.2.2:8000";
+    String site_url = "https://eunseokchoi.pythonanywhere.com";
     JSONObject post_json;
     String imageUrl = null;
     Bitmap bmImg = null;
@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
 
     // 업로드 UI(Post 입력 폼)에서 사용하는 값
     private static final int AUTHOR_ID = 1;   // Django User pk (Post.author)
-    private static final String TOKEN = "231d6fe0479443af1427c040a4fb058f008a894b";
+    private static final String TOKEN = "522e93f5a9e491c2e524f5cd16873ea84a314c7c";
     UploadDialog uploadDialog;
 
     // 갤러리에서 이미지 선택 결과 수신
