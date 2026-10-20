@@ -1,6 +1,7 @@
 package com.example.photoviewer;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -33,6 +34,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
@@ -52,9 +54,13 @@ public class MainActivity extends AppCompatActivity {
     PutPost taskUpload;
 
     // 업로드 UI(Post 입력 폼)에서 사용하는 값
-    private static final int AUTHOR_ID = 1;   // Django User pk (Post.author)
-    private static final String TOKEN = "522e93f5a9e491c2e524f5cd16873ea84a314c7c";
     UploadDialog uploadDialog;
+
+    // 로그인 정보 (로그인 성공 시 SharedPreferences 에 저장)
+    SharedPreferences auth;
+    TextView textUser;
+    LoginDialog loginDialog;
+    LoginTask taskLogin;
 
     // 갤러리에서 이미지 선택 결과 수신
     private final ActivityResultLauncher<Intent> imagePicker = registerForActivityResult(
@@ -72,6 +78,38 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         //imgView = (ImageView) findViewById(R.id.imgView);
         textView = (TextView) findViewById(R.id.textView);
+        textUser = (TextView) findViewById(R.id.text_user);
+
+        auth = getSharedPreferences("auth", MODE_PRIVATE);
+        if (getToken().isEmpty()) {
+            showLogin();
+        } else {
+            textUser.setText(auth.getString("username", "") + " 님");
+        }
+    }
+
+    private String getToken() {
+        return auth.getString("token", "");
+    }
+
+    // 로그인 창 표시
+    private void showLogin() {
+        textUser.setText("로그인 필요");
+        loginDialog = new LoginDialog(this, (username, password) -> {
+            if (taskLogin != null && taskLogin.getStatus() == AsyncTask.Status.RUNNING) return;
+            taskLogin = new LoginTask(username, password);
+            taskLogin.execute(site_url + "/api-token-auth/");
+        });
+        loginDialog.show();
+    }
+
+    public void onClickLogout(View v) {
+        auth.edit().clear().apply();
+        textView.setText("...");
+        RecyclerView recyclerView = findViewById(R.id.recyclerView);
+        recyclerView.setAdapter(null);
+        Toast.makeText(getApplicationContext(), "로그아웃", Toast.LENGTH_LONG).show();
+        showLogin();
     }
 
     public void onClickDownload(View v) {
@@ -127,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
 
             try {
                 String apiUrl = urls[0];
-                String token = "231d6fe0479443af1427c040a4fb058f008a894b";
+                String token = getToken();
                 URL urlAPI = new URL(apiUrl);
                 HttpURLConnection conn = (HttpURLConnection) urlAPI.openConnection();
                 conn.setRequestProperty("Authorization", "Token " + token);
@@ -186,6 +224,69 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // 로그인 : POST /api-token-auth/ (username, password) -> token, user_id, username
+    private class LoginTask extends AsyncTask<String, Void, JSONObject> {
+        private final String username;
+        private final String password;
+
+        LoginTask(String username, String password) {
+            this.username = username;
+            this.password = password;
+        }
+
+        @Override
+        protected JSONObject doInBackground(String... urls) {
+            try {
+                HttpURLConnection conn = (HttpURLConnection) new URL(urls[0]).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(3000);
+                conn.setReadTimeout(3000);
+
+                JSONObject body = new JSONObject();
+                body.put("username", username);
+                body.put("password", password);
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(body.toString().getBytes("UTF-8"));
+                }
+
+                if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder result = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) result.append(line);
+                    reader.close();
+                    return new JSONObject(result.toString());
+                }
+            } catch (IOException | JSONException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(JSONObject json) {
+            if (json == null) {
+                Toast.makeText(getApplicationContext(), "로그인 실패", Toast.LENGTH_LONG).show();
+                return;
+            }
+            try {
+                auth.edit()
+                        .putString("token", json.getString("token"))
+                        .putInt("user_id", json.optInt("user_id", 1))   // 서버가 user_id 를 주지 않으면 1 사용
+                        .putString("username", json.optString("username", username))
+                        .apply();
+                textUser.setText(json.optString("username", username) + " 님");
+                loginDialog.dismiss();
+                Toast.makeText(getApplicationContext(), "로그인 성공", Toast.LENGTH_LONG).show();
+                onClickDownload(null);   // 로그인 후 목록 동기화
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     // Post 업로드 : multipart/form-data 로 POST /api_root/Post/
     private class PutPost extends AsyncTask<String, Void, Boolean> {
         private final String title;
@@ -222,14 +323,14 @@ public class MainActivity extends AppCompatActivity {
 
                 HttpURLConnection conn = (HttpURLConnection) new URL(urls[0]).openConnection();
                 conn.setRequestMethod("POST");
-                conn.setRequestProperty("Authorization", "Token " + TOKEN);
+                conn.setRequestProperty("Authorization", "Token " + getToken());
                 conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
                 conn.setDoOutput(true);
                 conn.setConnectTimeout(3000);
                 conn.setReadTimeout(10000);
 
                 try (DataOutputStream out = new DataOutputStream(conn.getOutputStream())) {
-                    writeField(out, boundary, "author", String.valueOf(AUTHOR_ID));
+                    writeField(out, boundary, "author", String.valueOf(auth.getInt("user_id", 0)));
                     writeField(out, boundary, "title", title);
                     writeField(out, boundary, "text", text);
 
