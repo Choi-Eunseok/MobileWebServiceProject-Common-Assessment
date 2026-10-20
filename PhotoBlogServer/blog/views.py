@@ -3,7 +3,19 @@ from django.utils import timezone
 from .models import Post
 from .forms import PostForm
 from rest_framework import viewsets
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.response import Response
 from .serializers import PostSerializer
+
+class LoginToken(ObtainAuthToken):
+    """로그인: 토큰과 함께 user_id, username 반환 (클라이언트가 Post.author 지정에 사용)"""
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response({'token': token.key, 'user_id': user.pk, 'username': user.username})
 
 class blogImage(viewsets.ModelViewSet):
     queryset = Post.objects.all()

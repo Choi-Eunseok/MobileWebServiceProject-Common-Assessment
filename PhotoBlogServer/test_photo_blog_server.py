@@ -75,7 +75,8 @@ check("POST 잘못된 입력", c.post("/post/new/", {"title": "", "text": ""}).s
 check("POST 수정 잘못된 입력", c.post("/post/%d/edit/" % post.pk, {"title": "", "text": ""}).status_code, 200)
 
 # --- 토큰 인증 ---
-check("토큰 발급", "token" in c.post("/api-token-auth/", {"username": "tester", "password": "pw12345!"}).json(), True)
+login = c.post("/api-token-auth/", {"username": "tester", "password": "pw12345!"}).json()
+check("로그인 (token, user_id, username)", (bool(login["token"]), login["user_id"], login["username"]), (True, user.pk, "tester"))
 check("토큰 발급 (잘못된 비번)", c.post("/api-token-auth/", {"username": "tester", "password": "x"}).status_code, 400)
 
 # --- WSGI / ASGI 진입점 ---
