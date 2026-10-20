@@ -171,10 +171,10 @@ public class MainActivity extends AppCompatActivity {
         return name;
     }
 
-    private class CloadImage extends AsyncTask<String, Integer, List<Bitmap>> {
+    private class CloadImage extends AsyncTask<String, Integer, List<PostItem>> {
         @Override
-        protected List<Bitmap> doInBackground(String... urls) {
-            List<Bitmap> bitmapList = new ArrayList<>();
+        protected List<PostItem> doInBackground(String... urls) {
+            List<PostItem> postList = new ArrayList<>();
 
             try {
                 String apiUrl = urls[0];
@@ -211,7 +211,10 @@ public class MainActivity extends AppCompatActivity {
                             InputStream imgStream = conn.getInputStream();
 
                             Bitmap imageBitmap = BitmapFactory.decodeStream(imgStream);
-                            bitmapList.add(imageBitmap); // 이미지 리스트에 추가
+                            postList.add(new PostItem(post_json.optInt("id", -1),
+                                    post_json.getString("title"),
+                                    post_json.getString("text"),
+                                    imageBitmap)); // 게시물 리스트에 추가
                             imgStream.close();
                         }
                     }
@@ -220,18 +223,18 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
 
-            return bitmapList;
+            return postList;
         }
 
         @Override
-        protected void onPostExecute(List<Bitmap> images) {
+        protected void onPostExecute(List<PostItem> images) {
             swipeRefresh.setRefreshing(false);
             if (images.isEmpty()) {
                 textView.setText("불러올 이미지가 없습니다.");
             } else {
                 textView.setText("이미지 로드 성공!");
                 RecyclerView recyclerView = findViewById(R.id.recyclerView);
-                ImageAdapter adapter = new ImageAdapter(images);
+                ImageAdapter adapter = new ImageAdapter(images, post -> new PostDetailDialog(MainActivity.this, post).show());
                 recyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.this));
                 recyclerView.setAdapter(adapter);
             }
