@@ -23,6 +23,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -61,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
     TextView textUser;
     LoginDialog loginDialog;
     LoginTask taskLogin;
+    SwipeRefreshLayout swipeRefresh;
 
     // 갤러리에서 이미지 선택 결과 수신
     private final ActivityResultLauncher<Intent> imagePicker = registerForActivityResult(
@@ -79,6 +81,16 @@ public class MainActivity extends AppCompatActivity {
         //imgView = (ImageView) findViewById(R.id.imgView);
         textView = (TextView) findViewById(R.id.textView);
         textUser = (TextView) findViewById(R.id.text_user);
+
+        // 아래로 당기면 목록 새로고침
+        swipeRefresh = findViewById(R.id.swipeRefresh);
+        swipeRefresh.setOnRefreshListener(() -> {
+            if (getToken().isEmpty()) {
+                swipeRefresh.setRefreshing(false);   // 로그인 전에는 새로고침 안 함
+            } else {
+                onClickDownload(null);
+            }
+        });
 
         auth = getSharedPreferences("auth", MODE_PRIVATE);
         if (getToken().isEmpty()) {
@@ -118,6 +130,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         taskDownload = new CloadImage();
+        swipeRefresh.setRefreshing(true);
 
         taskDownload.execute(site_url + "/api_root/Post/");
         Toast.makeText(getApplicationContext(), "Download", Toast.LENGTH_LONG).show();
@@ -212,6 +225,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPostExecute(List<Bitmap> images) {
+            swipeRefresh.setRefreshing(false);
             if (images.isEmpty()) {
                 textView.setText("불러올 이미지가 없습니다.");
             } else {

@@ -13,15 +13,8 @@
         android:orientation="horizontal">
 
         <Button
-            android:id="@+id/btn_load"
-            android:layout_width="198dp"
-            android:layout_height="50dp"
-            android:onClick="onClickDownload"
-            android:text="동기화" />
-
-        <Button
             android:id="@+id/btn_save"
-            android:layout_width="215dp"
+            android:layout_width="match_parent"
             android:layout_height="50dp"
             android:onClick="onClickUpload"
             android:text="새로운 이미지 게시" />
@@ -56,10 +49,18 @@
         android:layout_height="wrap_content"
         android:text="..." />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView"
+    <!-- 아래로 당겨서 새로고침 -->
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefresh"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:orientation="vertical" />
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="16dp"
+            android:orientation="vertical" />
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 </LinearLayout>
